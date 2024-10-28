@@ -76,7 +76,7 @@ func main() {
 
 func fetchMetrics(metricFilters []MetricFilter) {
     // Prometheus /metrics 엔드포인트에서 메트릭을 가져오는 HTTP 요청
-    resp, err := http.Get("http://51.195.61.7:9183/metrics")
+    resp, err := http.Get("http://localhost:9183/metrics")
     if err != nil {
         log.Printf("Error fetching metrics: %v\n", err)
         return
