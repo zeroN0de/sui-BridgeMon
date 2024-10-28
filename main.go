@@ -32,10 +32,14 @@ func hcHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+    if err := godotenv.Load(); err != nil {
+        log.Fatalf("Error loading .env file: %v", err)
+    }
+
     http.HandleFunc("/health", hcHandler)
 
     // 서버 포트 설정
-    port := "6262"
+    port := os.Getenv("PORT")
     log.Printf("Server starting on port %s\n", port)
 
     // 서버 시작
@@ -66,7 +70,7 @@ func main() {
 
 func fetchMetrics(metricFilters []MetricFilter) {
     // Prometheus /metrics 엔드포인트에서 메트릭을 가져오는 HTTP 요청
-    resp, err := http.Get("http://51.195.61.7:9183/metrics")
+    resp, err := http.Get("http://localhost:9183/metrics")
     if err != nil {
         log.Printf("Error fetching metrics: %v\n", err)
         return
