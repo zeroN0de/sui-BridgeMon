@@ -78,14 +78,17 @@ func fetchMetrics(metricFilters []MetricFilter) {
     // Prometheus /metrics 엔드포인트에서 메트릭을 가져오는 HTTP 요청
     resp, err := http.Get("http://localhost:9183/metrics")
     if err != nil {
-        log.Printf("Error fetching metrics: %v\n", err)
+        errMsg := fmt.Sprintf("Error fetching metrics: %v\n", err)
+        log.Printf("Error: %s\n", errMsg)
+        sendAlert(errMsg)
         return
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        log.Printf("Error: received non-200 status code: %d\n", resp.StatusCode)
-        // 호출에러로 인한 slack 알람 추가 예정
+        errMsg := fmt.Sprintf("Received non-200 status code: %d\n", resp.StatusCode)
+        log.Printf("Error: %s\n", errMsg)
+        sendAlert(errMsg)  // Send error notification to Slack and PagerDuty
         return
     }
 
@@ -140,7 +143,6 @@ func uptimeAlert(metric string, currentValue int) {
     if exists {
         if currentValue == previousValue {
             sendAlert(fmt.Sprintf("Warning: %s has not changed. Current value: %d", metric, currentValue))
-            fmt.Println("증가하지않음.얼러트 조건 완성")
         } else if currentValue < 1000 {
             sendAlert(fmt.Sprintf("Critical: %s seems to have restarted. Current value: %d", metric, currentValue))
             fmt.Printf("Critical: %s seems to have restarted. Current value: %d", metric, currentValue)
@@ -189,7 +191,7 @@ func sendAlert(message string) {
         return
     }
 
-    payload := fmt.Sprintf(`{"text": "[Sui-Bridge] \n%s"}`, message)
+    payload := fmt.Sprintf(`{"text": "[Sui-Bridge]\n %s"}`, message)
     resp, err := http.Post(webhookUrl, "application/json", strings.NewReader(payload))
     if err != nil {
         log.Printf("Error sending alert to Slack: %v\n", err)
@@ -220,7 +222,7 @@ func callPd(message string) {
         "routing_key": routingKey,
         "event_action": "trigger",
         "payload": map[string]interface{}{
-            "summary":  "Sui Bridge" + message,
+            "summary":  "Sui Bridge\n" + message,
             "source":   "Sui Bridge",
             "severity": "critical",
         },
