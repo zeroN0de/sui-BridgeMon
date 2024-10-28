@@ -36,16 +36,22 @@ func main() {
         log.Fatalf("Error loading .env file: %v", err)
     }
 
-    http.HandleFunc("/health", hcHandler)
+    go func() {
+        http.HandleFunc("/health", hcHandler)
 
-    // 서버 포트 설정
-    port := os.Getenv("PORT")
-    log.Printf("Server starting on port %s\n", port)
+        // 서버 포트 설정
+        port := os.Getenv("PORT")
+        if port == "" {
+            log.Println("No PORT environment variable set, defaulting to 8080")
+            port = "8080" // 기본 포트 설정
+        }
+        log.Printf("Server starting on port %s\n", port)
 
-    // 서버 시작
-    if err := http.ListenAndServe(":"+port, nil); err != nil {
-        log.Fatalf("Failed to start server: %v\n", err)
-    }
+        // 서버 시작
+        if err := http.ListenAndServe(":"+port, nil); err != nil {
+            log.Fatalf("Failed to start server: %v\n", err)
+        }
+    }()
     // 주기적으로 메트릭을 확인하는 로직 (예: 1분마다)
     ticker := time.NewTicker(10 * time.Minute)
     defer ticker.Stop()
@@ -70,7 +76,7 @@ func main() {
 
 func fetchMetrics(metricFilters []MetricFilter) {
     // Prometheus /metrics 엔드포인트에서 메트릭을 가져오는 HTTP 요청
-    resp, err := http.Get("http://localhost:9183/metrics")
+    resp, err := http.Get("http://51.195.61.7:9183/metrics")
     if err != nil {
         log.Printf("Error fetching metrics: %v\n", err)
         return
