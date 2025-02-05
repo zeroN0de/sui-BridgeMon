@@ -66,9 +66,7 @@ func main() {
 
     // 프로그램 시작 시 즉시 메트릭 확인
     log.Println("Fetching metrics at startup...")
-    //fetchMetrics(metrics)
-    log.Printf("%s: %s %d\n", metric.Name, metric.Filter, value)
-
+    fetchMetrics(metrics)
 
     log.Println("Monitoring metrics every 10 minute...")
     for range ticker.C {
@@ -165,27 +163,16 @@ func requestsOkAlert(metric string, currentValue int) {
     currentUptime, uptimeExists := previousMetrics["uptime"]
 
     // 값이 없거나 같은 경우 경고
-    if !exists || currentValue == previousValue {
-        if uptimeExists {
-            previousUptime := previousMetrics["previous_uptime"]
-            if currentUptime > previousUptime && currentUptime > 3600 {
-                // Uptime이 3600초 이상이고 값이 변하지 않은 경우 경고
-                sendAlert(fmt.Sprintf("Warning: %s has not changed and uptime is over 1hr . Current value: %d", metric, currentValue))
-            }
-        } else {
-            // Uptime 데이터가 없는 경우에도 경고를 보냄
-            sendAlert(fmt.Sprintf("Warning: %s metric data is missing or unchanged. Current value: %d", metric, currentValue))
+    if uptimeExists && currentUptime > 3600 {
+        if !exists || currentValue == previousValue {
+            // 값이 없거나 같은 경우 경고
+            sendAlert(fmt.Sprintf("Warning: %s has not changed or is missing. Current value: %d, Uptime: %d seconds", metric, currentValue, currentUptime))
         }
     }
 
     // 메트릭 상태 업데이트
     previousMetrics[metric] = currentValue
-    if uptimeExists {
-        previousMetrics["previous_uptime"] = currentUptime
-    } else {
-        // Uptime 정보가 없으면 현재의 uptime을 이전 uptime으로 설정
-        previousMetrics["previous_uptime"] = currentUptime
-    }
+    previousMetrics["previous_uptime"] = currentUptime
 }
 
 func extractValueFromLine(line string) (int, error) {
