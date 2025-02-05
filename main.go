@@ -66,7 +66,9 @@ func main() {
 
     // 프로그램 시작 시 즉시 메트릭 확인
     log.Println("Fetching metrics at startup...")
-    fetchMetrics(metrics)
+    //fetchMetrics(metrics)
+    log.Printf("%s: %s %d\n", metric.Name, metric.Filter, value)
+
 
     log.Println("Monitoring metrics every 10 minute...")
     for range ticker.C {
