@@ -68,7 +68,7 @@ func main() {
     log.Println("Fetching metrics at startup...")
     fetchMetrics(metrics)
 
-    log.Println("Monitoring metrics every 1 minute...")
+    log.Println("Monitoring metrics every 10 minute...")
     for range ticker.C {
         fetchMetrics(metrics)
     }
@@ -94,6 +94,7 @@ func fetchMetrics(metricFilters []MetricFilter) {
 
     // HTTP 응답 바디를 읽고 필요한 메트릭만 필터링
     scanner := bufio.NewScanner(resp.Body)
+    foundMetrics := make(map[string]bool)
     for scanner.Scan() {
         line := scanner.Text()
         for _, metric := range metricFilters {
@@ -104,8 +105,14 @@ func fetchMetrics(metricFilters []MetricFilter) {
                     continue
                 }
                 metric.AlertFunc(metric.Name, value)
+                foundMetrics[metric.Name] = true
                 log.Printf("%s: %s %d\n", metric.Name, metric.Filter, value)
             }
+        }
+    }
+    for _, metric := range metricFilters{
+        if !foundMetrics[metric.Name] {
+            metric.AlertFunc(metric.Name, 0)
         }
     }
 
@@ -143,7 +150,7 @@ func uptimeAlert(metric string, currentValue int) {
     if exists {
         if currentValue == previousValue {
             sendAlert(fmt.Sprintf("Warning: %s has not changed. Current value: %d", metric, currentValue))
-        } else if currentValue < 1000 {
+        } else if currentValue < 3600 {
             sendAlert(fmt.Sprintf("Critical: %s seems to have restarted. Current value: %d", metric, currentValue))
             fmt.Printf("Critical: %s seems to have restarted. Current value: %d", metric, currentValue)
         }
@@ -155,18 +162,28 @@ func requestsOkAlert(metric string, currentValue int) {
     previousValue, exists := previousMetrics[metric]
     currentUptime, uptimeExists := previousMetrics["uptime"]
 
-    if exists && currentValue == previousValue {
-        // Uptime 메트릭을 확인
+    // 값이 없거나 같은 경우 경고
+    if !exists || currentValue == previousValue {
         if uptimeExists {
             previousUptime := previousMetrics["previous_uptime"]
-            if currentUptime > previousUptime {
-                // Uptime이 증가했다면 시스템은 정상 작동 중이므로 경고를 보내지 않음
-                fmt.Println("No alert sent. System is operating normally.")
+            if currentUptime > previousUptime && currentUptime > 3600 {
+                // Uptime이 3600초 이상이고 값이 변하지 않은 경우 경고
+                sendAlert(fmt.Sprintf("Warning: %s has not changed and uptime is over 1hr . Current value: %d", metric, currentValue))
             }
+        } else {
+            // Uptime 데이터가 없는 경우에도 경고를 보냄
+            sendAlert(fmt.Sprintf("Warning: %s metric data is missing or unchanged. Current value: %d", metric, currentValue))
         }
     }
+
+    // 메트릭 상태 업데이트
     previousMetrics[metric] = currentValue
-    previousMetrics["previous_uptime"] = currentUptime
+    if uptimeExists {
+        previousMetrics["previous_uptime"] = currentUptime
+    } else {
+        // Uptime 정보가 없으면 현재의 uptime을 이전 uptime으로 설정
+        previousMetrics["previous_uptime"] = currentUptime
+    }
 }
 
 func extractValueFromLine(line string) (int, error) {
